@@ -20,8 +20,7 @@
 
 #define ARP_FRAME_LEN (sizeof(struct ethhdr) + sizeof(struct arp_pac))
 
-extern struct ifreq ifr;
-
+extern uint8_t *hwaddr;
 
 int make_socket(char * iface) {
     int conn;
@@ -72,7 +71,7 @@ uint8_t * broadcast_frame(int conn, struct arp_pac * data) {
 
     // set boradcast info
     memset(header->h_dest, 0xFF, ETH_ALEN);
-    memcpy(header->h_source, &ifr.ifr_hwaddr , ETH_ALEN);
+    memcpy(header->h_source, hwaddr, ETH_ALEN);
     header->h_proto = htons(ETH_P_ARP);
 
     // copy payload
