@@ -4,7 +4,7 @@ objects = main.o helpers.o parsers.o sock_ops.o
 
 CC = gcc
 CXXFLAGS = -std=c11
-CFLAGS = -Wall -pedantic -g
+CFLAGS = -Wall -pedantic -Wextra -g -D_DEFAULT_SOURCE
 # CPPFLAGS = -I $(INCLUDE_PATH)
 LDLIBS = -L$(MYSQL_LINK_PATH)
 

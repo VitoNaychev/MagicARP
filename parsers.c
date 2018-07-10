@@ -1,3 +1,6 @@
+#include "helpers.h"
+#include "parsers.h"
+
 // socket libraries
 #include <net/if.h>
 #include <net/ethernet.h>
@@ -7,11 +10,9 @@
 #include <linux/if_arp.h>
 
 #include <assert.h>
+#include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
-
-#include "parsers.h"
-#include "helpers.h"
 
 void parse_arp(uint8_t * request) {
     struct arphdr *header = (struct arphdr *) request;
@@ -41,6 +42,8 @@ void parse_arp(uint8_t * request) {
     }
 
     printf("%s %s\n", src_mac, src_ip);
+
+    free(src_mac);
 }
 
 void parse_mac(uint8_t * frame) {
@@ -68,4 +71,7 @@ void parse_mac(uint8_t * frame) {
             printf("id: %X", ntohs(header->h_proto));
     }
     printf(" packet\n\n");
+
+    free(src);
+    free(dest);
 }

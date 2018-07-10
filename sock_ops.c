@@ -1,5 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 
+#include "sock_ops.h"
+
 #include <net/if.h>
 #include <linux/if.h>
 #include <sys/ioctl.h>
@@ -15,7 +17,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "sock_ops.h"
 
 int make_socket(char *iface) {
     int conn;

@@ -1,10 +1,12 @@
+#include "helpers.h"
+
 #include <netinet/ip.h>
+#include <arpa/inet.h>
+
+#include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <arpa/inet.h>
-#include <stdlib.h>
 
-#include "helpers.h"
 
 char * format_mac(uint8_t *mac) {
     char * smac = calloc(18, 1);

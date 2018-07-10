@@ -1,5 +1,6 @@
 #ifndef HELPERS_H
 #define HELPERS_H
+#define _BSD_SOURCE
 
 #include <netinet/ip.h>
 
