@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-struct  __attribute__((packed)) arp_pac{
+struct  __attribute__((packed)) arp_pac {
     uint16_t htype;
     uint16_t ptype;
     uint8_t hlen;

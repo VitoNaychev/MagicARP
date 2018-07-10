@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 
+#include "parsers.h"
 #include "sock_ops.h"
 
 #include <net/if.h>
@@ -17,8 +18,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#define ARP_FRAME_LEN (sizeof(struct ethhdr) + sizeof(struct arp_pac))
 
-int make_socket(char *iface) {
+extern struct ifreq ifr;
+
+
+int make_socket(char * iface) {
     int conn;
 
     conn = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
@@ -27,7 +32,7 @@ int make_socket(char *iface) {
         exit(0);
     }
 
-    //char * iface = "wlp2s0";
+    // char * iface = "wlp2s0";
     size_t len = strnlen(iface, IFNAMSIZ);
 
     if (len == IFNAMSIZ) {
@@ -59,6 +64,25 @@ uint8_t * read_frame(int conn) {
     printf("recived %ld bytes\n", bytes);
 
     return buffer;
+}
+
+uint8_t * broadcast_frame(int conn, struct arp_pac * data) {
+    uint8_t * payload = malloc(ARP_FRAME_LEN);
+    struct ethhdr * header = (struct ethhdr *)payload;
+
+    // set boradcast info
+    memset(header->h_dest, 0xFF, ETH_ALEN);
+    memcpy(header->h_source, &ifr.ifr_hwaddr , ETH_ALEN);
+    header->h_proto = htons(ETH_P_ARP);
+
+    // copy payload
+    memcpy(payload + sizeof(struct ethhdr), data, sizeof(struct arp_pac));
+
+    if (send(conn, payload, ARP_FRAME_LEN, 0) == -1) {
+        perror("Couldn't broadcast arp");
+    }
+
+    free(payload);
 }
 
 void set_promiscuous(int conn, char * if_name) {
