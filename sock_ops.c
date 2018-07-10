@@ -17,7 +17,7 @@
 
 #include "sock_ops.h"
 
-int make_socket() {
+int make_socket(char *iface) {
     int conn;
 
     conn = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
@@ -26,7 +26,7 @@ int make_socket() {
         exit(0);
     }
 
-    char * iface = "wlp2s0";
+    //char * iface = "wlp2s0";
     size_t len = strnlen(iface, IFNAMSIZ);
 
     if (len == IFNAMSIZ) {

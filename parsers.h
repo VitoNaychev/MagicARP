@@ -3,6 +3,18 @@
 
 #include <stdint.h>
 
+struct  __attribute__((packed)) arp_pac{
+    uint16_t htype;
+    uint16_t ptype;
+    uint8_t hlen;
+    uint8_t plen;
+    uint8_t oper;
+    uint8_t sha[6];
+    uint8_t spa[4];
+    uint8_t tha[6];
+    uint8_t tpa[4];
+};
+
 struct arp_body {
     uint8_t src_ha[6];
     uint8_t src_pa[4];

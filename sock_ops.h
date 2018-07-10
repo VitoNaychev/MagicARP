@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-int make_socket();
+int make_socket(char *);
 uint8_t * read_frame(int);
 void set_promiscuous(int conn, char * if_name);
 
