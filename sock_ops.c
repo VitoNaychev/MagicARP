@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <linux/if_packet.h>
 
 #include <net/ethernet.h>
 #include <arpa/inet.h>
@@ -20,7 +21,8 @@
 
 #define ARP_FRAME_LEN (sizeof(struct ethhdr) + sizeof(struct arp_pac))
 
-extern uint8_t *hwaddr;
+extern uint8_t hwaddr[6];
+extern int if_index;
 
 int make_socket(char * iface) {
     int conn;
@@ -65,11 +67,16 @@ uint8_t * read_frame(int conn) {
     return buffer;
 }
 
-uint8_t * broadcast_frame(int conn, struct arp_pac * data) {
+void broadcast_frame(int conn, struct arp_pac * data) {
     uint8_t * payload = malloc(ARP_FRAME_LEN);
     struct ethhdr * header = (struct ethhdr *)payload;
+    struct sockaddr_ll addr = {
+        .sll_ifindex = if_index,
+        .sll_halen = ETH_ALEN
+    };
 
     // set boradcast info
+    memset(addr.sll_addr, 0xFF, ETH_ALEN);
     memset(header->h_dest, 0xFF, ETH_ALEN);
     memcpy(header->h_source, hwaddr, ETH_ALEN);
     header->h_proto = htons(ETH_P_ARP);
@@ -77,7 +84,10 @@ uint8_t * broadcast_frame(int conn, struct arp_pac * data) {
     // copy payload
     memcpy(payload + sizeof(struct ethhdr), data, sizeof(struct arp_pac));
 
-    if (send(conn, payload, ARP_FRAME_LEN, 0) == -1) {
+    if (sendto(
+        conn, payload, ARP_FRAME_LEN, 0,
+        (struct sockaddr *)&addr, sizeof(struct sockaddr_ll)
+    ) == -1) {
         perror("Couldn't broadcast arp");
     }
 
