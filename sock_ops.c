@@ -21,7 +21,7 @@
 
 #define ARP_FRAME_LEN (sizeof(struct ethhdr) + sizeof(struct arp_pac))
 
-extern uint8_t hwaddr[6];
+extern uint8_t *hwaddr;
 extern int if_index;
 
 int make_socket(char * iface) {

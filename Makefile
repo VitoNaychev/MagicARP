@@ -1,4 +1,4 @@
-objects = main.o helpers.o parsers.o sock_ops.o
+objects = main.o helpers.o parsers.o sock_ops.o packet_builders.o
 
 # INCLUDE_PATH = include/
 
@@ -13,7 +13,7 @@ LDLIBS = -L$(MYSQL_LINK_PATH)
 magicARP: $(objects)
 	$(CC) -o $@ $(objects) $(CFLAGS) $(CXXFLAGS)
 
-$(objects): helpers.h parsers.h
+$(objects): helpers.h parsers.h packet_builders.h
 
 clean:
 	rm -f $(objects) magicARP
