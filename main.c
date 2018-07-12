@@ -1,6 +1,7 @@
 #include "helpers.h"
 #include "parsers.h"
 #include "sock_ops.h"
+#include "interceptor.c"
 
 #include <sys/ioctl.h>
 #include <net/if.h>
@@ -61,6 +62,7 @@ int main(int argc, char *argv[]) {
     memcpy(packet.tpa, &tpa, sizeof(uint8_t) * 4);
 
     broadcast_frame(sock, &packet);
+    interceptor(NULL);
 
     return 0;
 }
