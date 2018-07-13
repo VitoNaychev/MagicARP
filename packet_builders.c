@@ -23,8 +23,8 @@ struct arp_pac build_arp_request(uint32_t spa, uint32_t tpa, uint8_t *hwaddr){
         .oper = htons(ARPOP_REQUEST)
     };
 
-    spa = htonl(spa);
-    tpa = htonl(tpa);
+    // spa = htonl(spa);
+    // tpa = htonl(tpa);
 
     memcpy(hwaddr, hwaddr, ETH_ALEN);
 
@@ -33,20 +33,20 @@ struct arp_pac build_arp_request(uint32_t spa, uint32_t tpa, uint8_t *hwaddr){
 
     memset(packet.tha, 0, ETH_ALEN);
     memcpy(packet.tpa, &tpa, sizeof(uint8_t) * 4);
-    
+
     return packet;
 }
 
 uint8_t *get_if_hwaddr(int sock, char* if_name){
     struct ifreq ifr;
-    
+
     strncpy(ifr.ifr_name, if_name, IFNAMSIZ);
 
     if(ioctl(sock, SIOCGIFHWADDR, &ifr)){
         perror("SIOCGIFHWADDR");
         exit(1);
     }
-    
+
     uint8_t* sa_data = malloc(SA_DATA_LEN);
     memcpy(sa_data, ifr.ifr_hwaddr.sa_data, SA_DATA_LEN);
 
@@ -55,7 +55,7 @@ uint8_t *get_if_hwaddr(int sock, char* if_name){
 
 int get_if_index(int sock, char* if_name){
     struct ifreq ifr;
-    
+
     strncpy(ifr.ifr_name, if_name, IFNAMSIZ);
 
     if(ioctl(sock, SIOCGIFINDEX, &ifr)){
@@ -93,6 +93,6 @@ uint32_t get_if_addr(int sock, char* if_name){
 
     uint32_t ip_addr = ((struct sockaddr_in*)
                  &ifr.ifr_netmask)->sin_addr.s_addr;
-    
+
     return htonl(ip_addr);
 }

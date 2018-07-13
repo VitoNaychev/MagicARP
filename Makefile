@@ -14,6 +14,7 @@ magicARP: $(objects)
 	$(CC) -o $@ $(objects) $(CFLAGS) $(CXXFLAGS)
 
 $(objects): helpers.h parsers.h packet_builders.h
+main.o: interceptor.c
 
 clean:
 	rm -f $(objects) magicARP
