@@ -22,7 +22,10 @@ struct arp_pac build_arp_request(uint32_t spa, uint32_t tpa, uint8_t *hwaddr){
         .plen = 4,
         .oper = htons(ARPOP_REQUEST)
     };
-    
+
+    spa = htonl(spa);
+    tpa = htonl(tpa);
+
     memcpy(hwaddr, hwaddr, ETH_ALEN);
 
     memcpy(packet.sha, hwaddr, ETH_ALEN);
@@ -63,7 +66,7 @@ int get_if_index(int sock, char* if_name){
     return ifr.ifr_ifindex;
 }
 
-unsigned long get_if_netmask(int sock, char* if_name){
+uint32_t get_if_netmask(int sock, char* if_name){
     struct ifreq ifr;
 
     strncpy(ifr.ifr_name, if_name, IFNAMSIZ);
@@ -73,7 +76,23 @@ unsigned long get_if_netmask(int sock, char* if_name){
         exit(1);
     }
 
-    unsigned long netmask = ((struct sockaddr_in*)
+    uint32_t netmask = ((struct sockaddr_in*)
                  &ifr.ifr_netmask)->sin_addr.s_addr;
-    return netmask;
+    return htonl(netmask);
+}
+
+uint32_t get_if_addr(int sock, char* if_name){
+    struct ifreq ifr;
+
+    strncpy(ifr.ifr_name, if_name, IFNAMSIZ);
+
+    if(ioctl(sock, SIOCGIFADDR, &ifr)){
+        perror("SIOCGIFNETADDR");
+        exit(1);
+    }
+
+    uint32_t ip_addr = ((struct sockaddr_in*)
+                 &ifr.ifr_netmask)->sin_addr.s_addr;
+    
+    return htonl(ip_addr);
 }

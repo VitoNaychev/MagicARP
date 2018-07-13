@@ -3,6 +3,7 @@
 #include "sock_ops.h"
 #include "packet_builders.h"
 
+#include <unistd.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include <stdlib.h>
@@ -13,6 +14,7 @@
 #include <linux/if_ether.h>
 #include <arpa/inet.h>
 #include <getopt.h>
+#include <pthread.h>
 
 struct ifreq ifr;
 uint8_t *hwaddr;
@@ -27,6 +29,8 @@ int c;
 uint32_t spa, tpa;
 char if_name[IFNAMSIZ];
 
+pthread_t recv_thread;
+
 static struct option long_options[] =
 {
   {"mitm",      no_argument,       0, '0'},
@@ -38,11 +42,16 @@ static struct option long_options[] =
 };
 
 void print_help();
+void recv_func(void* conn);
+void mitm_attk(int sock, struct arp_pac *packet);
 
 int main(int argc, char *argv[]) {
     
     opterr = 0;
-    
+    if(argc == 1){
+        print_help();
+        exit(1);
+    }
     while((c = getopt_long(argc, argv, "01i:v:s:", long_options,
                            &options_index)) != -1){
         switch(c){
@@ -86,17 +95,30 @@ int main(int argc, char *argv[]) {
     struct arp_pac packet = build_arp_request(spa, tpa, hwaddr);
     
     if(mitm_mode)
-        broadcast_frame(sock, &packet);
+        mitm_attk(sock, &packet);
     
     if(hosts_mode){
-        unsigned long netmask = get_if_netmask(sock, if_name);
-        unsigned long min_local_ip = (spa & netmask) + 1;
-        unsigned long max_local_ip = (~netmask | spa) - 1;
-        for(unsigned long i = min_local_ip ; i < max_local_ip ; ++ i){
-            printf("Sending to: %s", "pp");
-            memcpy(packet.spa, &i, sizeof(uint8_t) * 4);
+        uint32_t my_addr = htonl(get_if_addr(sock, if_name));
+        memcpy(packet.spa, &my_addr, sizeof(uint8_t) * 4);
+        uint32_t netmask = get_if_netmask(sock, if_name);
+        printf("Netmask: %x\n", netmask);
+        uint32_t min_local_ip = (htonl(spa) & netmask);
+        printf("MIN IP: %x\n", min_local_ip);
+        uint32_t max_local_ip = ((~netmask) | htonl(spa));
+        printf("MAX IP: %x\n", max_local_ip);
+        printf("Sending to: %u\n", max_local_ip - min_local_ip);
+        pthread_create(&recv_thread, NULL, &recv_func, (void *)&sock);
+        for(uint32_t i = min_local_ip ; i < max_local_ip ; ++ i){
+            char cur_ip[16];
+            //inet_ntop(AF_INET, &i, cur_ip, INET_ADDRSTRLEN);
+            //printf("Cur HOST IP: %s\n", cur_ip);
+            i = htonl(i);
+            memcpy(packet.tpa, &i, sizeof(uint8_t) * 4);
             broadcast_frame(sock, &packet);
+            i = ntohl(i);
         }
+        sleep(3);
+        pthread_cancel(recv_thread);
     }
     return 0;
 }
@@ -113,4 +135,13 @@ void print_help(){
     printf("    -s, --spoofed\tSet spoofed IP\n");
 }
 
+void recv_func(void* conn){
+    
+    while(1){
+        recv_frame(*((int*)conn));
+    }
+}
 
+void mitm_attk(int sock, struct arp_pac *packet){
+    broadcast_frame(sock, packet);
+}

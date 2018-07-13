@@ -10,6 +10,8 @@ uint8_t *get_if_hwaddr(int, char*);
 
 int get_if_index(int, char*);
 
-unsigned long get_if_netmask(int, char*);
+uint32_t get_if_netmask(int, char*);
+
+uint32_t get_if_addr(int, char*);
 
 #endif

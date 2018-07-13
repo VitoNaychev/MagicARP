@@ -94,6 +94,35 @@ void broadcast_frame(int conn, struct arp_pac * data) {
     free(payload);
 }
 
+void recv_frame(int conn){
+    uint8_t * payload = malloc(ARP_FRAME_LEN);
+    if(recv(conn, payload, ARP_FRAME_LEN, 0) == -1){
+        perror("recv");
+    }
+    
+    struct ethhdr header = *((struct ethhdr *)payload);
+
+    if(header.h_proto != htons(ETH_P_ARP)){
+        return;
+    }
+
+    payload += sizeof(struct ethhdr);
+    
+    struct arp_pac *reply = (struct arp_pac *)payload;
+    char mac_str[20];
+    char ip_str[16];
+
+    uint8_t *ip = reply->spa;
+    uint8_t *mac = reply->sha;
+
+    snprintf(mac_str, sizeof(mac_str), "%02x:%02x:%02x:%02x:%02x:%02x",
+         mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    snprintf(ip_str, sizeof(ip_str), "%d.%d.%d.%d",
+         ip[0], ip[1], ip[2], ip[3]);
+
+    printf("MAC: %s IP: %s\n", mac_str, ip_str);
+}
+
 void set_promiscuous(int conn, char * if_name) {
     struct ifreq ifr;
     strncpy(ifr.ifr_name, if_name, IF_NAMESIZE);
